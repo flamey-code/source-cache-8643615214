@@ -9,6 +9,8 @@ jobs:
   update:
     runs-on: ubuntu-latest
     permissions: write-all
+    env:
+      GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout
@@ -20,9 +22,9 @@ jobs:
       - name: Fetch official feeds
         run: |
           mkdir -p feeds/cve/nvd feeds/cisa feeds/mitre
-          cd feeds/cve/nvd && wget -q https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-recent.json.gz -O recent.json.gz && gunzip -f *.gz || true
-          cd ../../cisa && wget -q https://www.cisa.gov/known-exploited-vulnerabilities.json -O kev.json || true
-          cd ../../mitre && wget -q https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json -O enterprise-attack.json || true
+          wget -q https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-recent.json.gz -O feeds/cve/nvd/recent.json.gz && gunzip -f feeds/cve/nvd/recent.json.gz || true
+          wget -q https://www.cisa.gov/known-exploited-vulnerabilities.json -O feeds/cisa/kev.json || true
+          wget -q https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json -O feeds/mitre/enterprise-attack.json || true
 
       - name: SELF-LEARNING - Extract patterns from everything we have
         run: |
@@ -37,9 +39,11 @@ jobs:
           mkdir -p discovered-pocs/{exploits,tools,writeups,cves,other}
           QUERIES=("CVE PoC" "exploit PoC" "0day PoC" "0-day PoC" "RCE PoC" "LPE PoC" "privilege escalation PoC" "payload PoC" "bypass PoC" "remote code execution" "local privilege escalation" "shellcode" "PoC" "proof of concept" "exploit code" "vulnerability PoC" "red team tool" "pentest tool" "CTF exploit" "writeup exploit" "exploit" "PoC" "proof of concept exploit")
           for query in "${QUERIES[@]}"; do
+            echo "Searching: $query"
             gh search repos "$query" --limit 1000 --json url --jq '.[].url' | while read repo; do
               name=$(basename "$repo" .git 2>/dev/null || basename "$repo")
               if [ -d "discovered-pocs/exploits/$name" ] || [ -d "discovered-pocs/tools/$name" ] || [ -d "discovered-pocs/writeups/$name" ] || [ -d "discovered-pocs/cves/$name" ] || [ -d "discovered-pocs/other/$name" ]; then continue; fi
+              echo "→ Cloning: $repo"
               git clone --depth 1 "$repo" "discovered-pocs/temp/$name" || true
               cd "discovered-pocs/temp/$name" 2>/dev/null || continue
               SCORE=0
