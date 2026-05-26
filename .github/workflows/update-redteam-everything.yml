@@ -1,4 +1,4 @@
-name: Daily Red Team Everything Update + MAX Discovery
+name: Daily Red Team Everything Update + ULTIMATE MAX Discovery
 
 on:
   schedule:
@@ -18,7 +18,7 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Update all core submodules (full history)
+      - name: Update all core submodules
         run: git submodule update --init --recursive --remote --jobs 4
 
       - name: Fetch all official feeds
@@ -28,35 +28,33 @@ jobs:
           cd ../../cisa && wget -q https://www.cisa.gov/known-exploited-vulnerabilities.json -O kev.json || true
           cd ../../mitre && wget -q https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json -O enterprise-attack.json || true
 
-      - name: MAX Discovery - Clone new PoCs from everywhere on GitHub
+      - name: ULTIMATE MAX Discovery - Get literally everything possible
         run: |
           mkdir -p discovered-pocs
-          echo "🔍 Running aggressive GitHub-wide PoC discovery..."
-          
-          # Multiple broad searches to catch as much as possible
+          echo "🚀 ULTIMATE MAX DISCOVERY STARTED - pulling everything GitHub has..."
+
           for query in \
-            "CVE PoC OR exploit PoC" \
-            "0day PoC OR 0-day PoC" \
-            "RCE PoC OR remote code execution PoC" \
-            "LPE PoC OR privilege escalation PoC" \
-            "payload PoC OR bypass PoC"; do
+            "CVE PoC" "exploit PoC" "0day PoC" "0-day PoC" "RCE PoC" \
+            "LPE PoC" "privilege escalation PoC" "payload PoC" "bypass PoC" \
+            "remote code execution PoC" "local privilege escalation PoC" \
+            "exploit" "PoC" "proof of concept exploit"; do
             echo "Searching: $query"
-            gh search repos "$query" --limit 80 --json url,updatedAt --jq '.[] | select(.updatedAt > "2025-01-01") | .url' | while read repo; do
-              name=$(basename "$repo" .git)
+            gh search repos "$query" --limit 1000 --json url --jq '.[].url' | while read repo; do
+              name=$(basename "$repo" .git 2>/dev/null || basename "$repo")
               if [ ! -d "discovered-pocs/$name" ]; then
-                echo "→ Cloning new: $repo"
+                echo "→ Cloning new repo: $repo"
                 git clone --depth 1 "$repo" "discovered-pocs/$name" || true
               fi
             done
           done
 
-      - name: Generate full append-only history + archives
+      - name: Generate full append-only history
         run: |
           chmod +x scripts/generate-history.sh
           scripts/generate-history.sh
 
-      - name: Commit & push (append-only - never deletes anything)
+      - name: Commit & push (append-only - we keep EVERYTHING)
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: MAX daily update + aggressive PoC discovery + feeds ${{ github.event.repository.updated_at }}"
+          commit_message: "ULTIMATE MAX daily update - everything that exists on GitHub"
           file_pattern: .
