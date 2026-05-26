@@ -1,4 +1,4 @@
-name: Daily Red Team Everything Update + ULTIMATE MAX Discovery
+name: Daily Red Team Everything Update + ULTIMATE MAX Discovery + Classification
 
 on:
   schedule:
@@ -18,43 +18,62 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Update all core submodules
+      - name: Update core submodules
         run: git submodule update --init --recursive --remote --jobs 4
 
-      - name: Fetch all official feeds
+      - name: Fetch official feeds
         run: |
           mkdir -p feeds/cve/nvd feeds/cisa feeds/mitre
           cd feeds/cve/nvd && wget -q https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-recent.json.gz -O recent.json.gz && gunzip -f *.gz || true
           cd ../../cisa && wget -q https://www.cisa.gov/known-exploited-vulnerabilities.json -O kev.json || true
           cd ../../mitre && wget -q https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json -O enterprise-attack.json || true
 
-      - name: ULTIMATE MAX Discovery - Get literally everything possible
+      - name: ULTIMATE MAX Discovery + Smart Classification
         run: |
-          mkdir -p discovered-pocs
-          echo "🚀 ULTIMATE MAX DISCOVERY STARTED - pulling everything GitHub has..."
+          mkdir -p discovered-pocs/{exploits,tools,writeups,cves,other}
+          echo "🚀 Starting ULTIMATE MAX discovery with broad keywords + classification..."
 
-          for query in \
-            "CVE PoC" "exploit PoC" "0day PoC" "0-day PoC" "RCE PoC" \
-            "LPE PoC" "privilege escalation PoC" "payload PoC" "bypass PoC" \
-            "remote code execution PoC" "local privilege escalation PoC" \
-            "exploit" "PoC" "proof of concept exploit"; do
+          QUERIES=(
+            "CVE PoC" "exploit PoC" "0day PoC" "0-day PoC" "RCE PoC"
+            "LPE PoC" "privilege escalation PoC" "payload PoC" "bypass PoC"
+            "remote code execution" "local privilege escalation"
+            "PoC" "proof of concept" "exploit code" "vulnerability PoC"
+            "red team tool" "pentest tool" "CTF exploit" "writeup exploit"
+          )
+
+          for query in "${QUERIES[@]}"; do
             echo "Searching: $query"
             gh search repos "$query" --limit 1000 --json url --jq '.[].url' | while read repo; do
               name=$(basename "$repo" .git 2>/dev/null || basename "$repo")
-              if [ ! -d "discovered-pocs/$name" ]; then
-                echo "→ Cloning new repo: $repo"
-                git clone --depth 1 "$repo" "discovered-pocs/$name" || true
+              if [ ! -d "discovered-pocs/exploits/$name" ] && [ ! -d "discovered-pocs/tools/$name" ] && [ ! -d "discovered-pocs/writeups/$name" ]; then
+                echo "→ Cloning: $repo"
+                git clone --depth 1 "$repo" "discovered-pocs/temp/$name" || true
+
+                # Simple classification
+                cd "discovered-pocs/temp/$name" 2>/dev/null || continue
+                if grep -iqE 'exploit|cve-|rce|lpe|privilege|payload|bypass' README.md * 2>/dev/null || [[ "$name" =~ (exploit|cve|PoC|RCE|LPE) ]]; then
+                  mv "../../temp/$name" "../../exploits/" 2>/dev/null || true
+                elif grep -iqE 'tool|framework|impacket|metasploit|empire|covenant|sliver' README.md * 2>/dev/null || [[ "$name" =~ (tool|framework) ]]; then
+                  mv "../../temp/$name" "../../tools/" 2>/dev/null || true
+                elif grep -iqE 'writeup|write-up|tutorial|howto|blog' README.md * 2>/dev/null; then
+                  mv "../../temp/$name" "../../writeups/" 2>/dev/null || true
+                else
+                  mv "../../temp/$name" "../../other/" 2>/dev/null || true
+                fi
+                cd - > /dev/null
               fi
             done
+            sleep 5  # be nice to GitHub rate limits
           done
+          rm -rf discovered-pocs/temp 2>/dev/null || true
 
       - name: Generate full append-only history
         run: |
           chmod +x scripts/generate-history.sh
           scripts/generate-history.sh
 
-      - name: Commit & push (append-only - we keep EVERYTHING)
+      - name: Commit & push (append-only)
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "ULTIMATE MAX daily update - everything that exists on GitHub"
+          commit_message: "ULTIMATE MAX daily update + broad keyword discovery + classification"
           file_pattern: .
