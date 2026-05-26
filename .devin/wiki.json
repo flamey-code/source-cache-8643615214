@@ -1,0 +1,13 @@
+{
+  "repo_notes": "ULTIMATE self-learning red team monorepo. All submodules replaced with real source code. Continuously discovers and archives EVERY exploit/PoC/tool from GitHub. Extracts live patterns daily from all fetched data and uses them for smart classification. Everything is append-only. Full history preserved forever in HISTORY.md + daily history/ + archives/ folders. Nothing is ever lost.",
+  "pages": [
+    {"title": "Overview", "content": "Complete architecture of the self-learning red team archive. How daily discovery, pattern extraction, classification, and append-only history work together."},
+    {"title": "History System", "content": "Every change is captured daily. Location of HISTORY.md, history/YYYY-MM-DD/ folders, and archives/YYYY-MM-DD/ with full file copies. Nothing from the past is ever lost."},
+    {"title": "Classification Logic", "content": "How the system automatically classifies new repos into exploits/, tools/, writeups/, cves/, or other/ using live patterns extracted from all existing data."},
+    {"title": "Daily Discovery", "content": "Ultra-aggressive GitHub-wide search (1000 results per query, 20+ search terms). How new PoCs are found and added every day."},
+    {"title": "Self-Learning System", "content": "How the monorepo gets smarter every day by extracting patterns (file extensions, README phrases, structures) from everything it has already fetched."},
+    {"title": "Core Tools (Real Source Code)", "content": "Actual source code of Exploit-DB, nuclei-templates, Metasploit, Impacket, Covenant, Empire, Sliver, PayloadsAllTheThings and all frameworks (no submodules)."},
+    {"title": "Discovered PoCs Structure", "content": "discovered-pocs/ with subfolders exploits/, tools/, writeups/, cves/, other/. How new repos are automatically organized."},
+    {"title": "Official Feeds", "content": "NVD CVE, CISA KEV, and MITRE ATT&CK feeds updated daily."}
+  ]
+}

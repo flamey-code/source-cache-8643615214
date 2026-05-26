@@ -1,4 +1,4 @@
-name: Daily Red Team Everything Update + ULTIMATE Self-Learning Discovery
+name: Daily Red Team Everything Update + ULTIMATE Self-Learning (Real Code)
 
 on:
   schedule:
@@ -11,100 +11,57 @@ jobs:
     permissions: write-all
 
     steps:
-      - name: Checkout monorepo
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT }}
-          submodules: recursive
           fetch-depth: 0
 
-      - name: Update all core submodules (full history)
-        run: git submodule update --init --recursive --remote --jobs 4
-
-      - name: Fetch all official feeds
+      - name: Fetch official feeds
         run: |
           mkdir -p feeds/cve/nvd feeds/cisa feeds/mitre
           cd feeds/cve/nvd && wget -q https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-recent.json.gz -O recent.json.gz && gunzip -f *.gz || true
           cd ../../cisa && wget -q https://www.cisa.gov/known-exploited-vulnerabilities.json -O kev.json || true
           cd ../../mitre && wget -q https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json -O enterprise-attack.json || true
 
-      - name: SELF-LEARNING - Extract patterns from everything we already have
+      - name: SELF-LEARNING - Extract patterns from everything we have
         run: |
-          echo "🧠 Extracting live patterns from existing data..."
           mkdir -p patterns
-          
-          # Extract high-signal file extensions from known exploits
-          find exploits cves payloads discovered-pocs/exploits -type f 2>/dev/null | sed 's/.*\.//' | sort | uniq -c | sort -rn | head -30 > patterns/common_exploit_extensions.txt
-          
-          # Extract high-signal phrases from READMEs of known exploits
+          find exploits cves payloads discovered-pocs/exploits -type f 2>/dev/null | sed 's/.*\.//' | sort | uniq -c | sort -rn | head -30 > patterns/common_extensions.txt
           grep -r -i -E 'exploit|proof of concept|remote code execution|local privilege escalation|shellcode|bypass|payload' \
             exploits/*/README.md cves/*/README.md discovered-pocs/exploits/*/README.md 2>/dev/null | \
             sed 's/.*://' | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '\n' | sort | uniq -c | sort -rn | head -100 > patterns/exploit_phrases.txt
-          
-          echo "✅ Patterns extracted and saved"
 
-      - name: ULTIMATE Discovery + Smart Classification (using live patterns)
+      - name: ULTIMATE Discovery + Classification (rate limited)
         run: |
           mkdir -p discovered-pocs/{exploits,tools,writeups,cves,other}
-          echo "🚀 Starting ULTIMATE self-learning discovery..."
-
-          QUERIES=(
-            "CVE PoC" "exploit PoC" "0day PoC" "0-day PoC" "RCE PoC"
-            "LPE PoC" "privilege escalation PoC" "payload PoC" "bypass PoC"
-            "remote code execution" "local privilege escalation" "shellcode"
-            "PoC" "proof of concept" "exploit code" "vulnerability PoC"
-            "red team tool" "pentest tool" "CTF exploit" "writeup exploit"
-            "exploit" "PoC" "proof of concept exploit"
-          )
-
+          QUERIES=("CVE PoC" "exploit PoC" "0day PoC" "0-day PoC" "RCE PoC" "LPE PoC" "privilege escalation PoC" "payload PoC" "bypass PoC" "remote code execution" "local privilege escalation" "shellcode" "PoC" "proof of concept" "exploit code" "vulnerability PoC" "red team tool" "pentest tool" "CTF exploit" "writeup exploit" "exploit" "PoC" "proof of concept exploit")
           for query in "${QUERIES[@]}"; do
-            echo "Searching: $query"
             gh search repos "$query" --limit 1000 --json url --jq '.[].url' | while read repo; do
               name=$(basename "$repo" .git 2>/dev/null || basename "$repo")
-              
-              # Skip if we already have it
-              if [ -d "discovered-pocs/exploits/$name" ] || [ -d "discovered-pocs/tools/$name" ] || \
-                 [ -d "discovered-pocs/writeups/$name" ] || [ -d "discovered-pocs/cves/$name" ] || \
-                 [ -d "discovered-pocs/other/$name" ]; then
-                continue
-              fi
-              
-              echo "→ Cloning new: $repo"
+              if [ -d "discovered-pocs/exploits/$name" ] || [ -d "discovered-pocs/tools/$name" ] || [ -d "discovered-pocs/writeups/$name" ] || [ -d "discovered-pocs/cves/$name" ] || [ -d "discovered-pocs/other/$name" ]; then continue; fi
               git clone --depth 1 "$repo" "discovered-pocs/temp/$name" || true
-              
-              # === SELF-LEARNING CLASSIFICATION ===
               cd "discovered-pocs/temp/$name" 2>/dev/null || continue
-              
               SCORE=0
-              # Check against live extracted patterns
               if grep -q "$(basename "$name" | tr '[:upper:]' '[:lower:]')" ../../patterns/exploit_phrases.txt 2>/dev/null; then SCORE=$((SCORE+3)); fi
               if ls | grep -qE '\.(py|sh|bin|exe|js|ps1)$' 2>/dev/null; then SCORE=$((SCORE+2)); fi
               if grep -iqE 'exploit|cve-|rce|lpe|privilege|payload|bypass|shellcode|proof of concept' README.md * 2>/dev/null; then SCORE=$((SCORE+4)); fi
               if [[ "$name" =~ (exploit|cve|PoC|RCE|LPE|shellcode|bypass) ]]; then SCORE=$((SCORE+3)); fi
-              
-              # Move to correct folder based on score
-              if [ $SCORE -ge 5 ]; then
-                mv "../temp/$name" "../exploits/" 2>/dev/null || true
-              elif [ $SCORE -ge 3 ]; then
-                mv "../temp/$name" "../tools/" 2>/dev/null || true
-              elif [ $SCORE -ge 1 ]; then
-                mv "../temp/$name" "../writeups/" 2>/dev/null || true
-              else
-                mv "../temp/$name" "../other/" 2>/dev/null || true
-              fi
+              if [ $SCORE -ge 5 ]; then mv "../temp/$name" "../exploits/" 2>/dev/null || true
+              elif [ $SCORE -ge 3 ]; then mv "../temp/$name" "../tools/" 2>/dev/null || true
+              elif [ $SCORE -ge 1 ]; then mv "../temp/$name" "../writeups/" 2>/dev/null || true
+              else mv "../temp/$name" "../other/" 2>/dev/null || true; fi
               cd - > /dev/null
             done
-            sleep 8
+            sleep 10
           done
           rm -rf discovered-pocs/temp 2>/dev/null || true
 
-      - name: Generate full append-only history + archives
-        run: |
-          chmod +x scripts/generate-history.sh
-          scripts/generate-history.sh
+      - name: Generate full append-only history
+        run: chmod +x scripts/generate-history.sh && scripts/generate-history.sh
 
-      - name: Commit & push (append-only - we keep EVERYTHING forever)
+      - name: Commit
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "ULTIMATE self-learning daily update - patterns extracted from everything we have"
+          commit_message: "ULTIMATE self-learning update - real code + patterns from everything + full history"
           file_pattern: .
