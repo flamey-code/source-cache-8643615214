@@ -1,0 +1,40 @@
+name: Daily Red Team Everything Update + Full History
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions: write-all
+
+    steps:
+      - name: Checkout monorepo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Update all submodules
+        run: git submodule update --init --recursive --remote
+
+      - name: Fetch official CVE feeds
+        run: |
+          mkdir -p feeds/cve/nvd
+          cd feeds/cve/nvd
+          wget -q https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-recent.json.gz -O recent.json.gz || true
+          gunzip -f *.gz || true
+
+      - name: Generate full change catalog + archives (append-only)
+        run: |
+          chmod +x scripts/generate-history.sh
+          scripts/generate-history.sh
+
+      - name: Commit & push (append-only)
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: daily update + full change catalog ${{ github.event.repository.updated_at }}"
+          file_pattern: .

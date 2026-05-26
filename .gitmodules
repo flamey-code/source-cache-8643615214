@@ -1,0 +1,21 @@
+[submodule "exploits/exploitdb"]
+	path = exploits/exploitdb
+	url = https://gitlab.com/exploit-database/exploitdb.git
+[submodule "cves/trickest-cve"]
+	path = cves/trickest-cve
+	url = https://github.com/trickest/cve.git
+[submodule "cves/poc-in-github"]
+	path = cves/poc-in-github
+	url = https://github.com/nomi-sec/PoC-in-GitHub.git
+[submodule "payloads/PayloadsAllTheThings"]
+	path = payloads/PayloadsAllTheThings
+	url = https://github.com/swisskyrepo/PayloadsAllTheThings.git
+[submodule "exploits/nuclei-templates"]
+	path = exploits/nuclei-templates
+	url = https://github.com/projectdiscovery/nuclei-templates.git
+[submodule "exploits/metasploit"]
+	path = exploits/metasploit
+	url = https://github.com/rapid7/metasploit-framework.git
+[submodule "exploits/impacket"]
+	path = exploits/impacket
+	url = https://github.com/fortra/impacket.git
