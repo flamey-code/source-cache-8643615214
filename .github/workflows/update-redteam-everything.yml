@@ -1,4 +1,4 @@
-name: Daily Red Team Everything Update + Full History
+name: Daily Red Team Everything Update + MAX Discovery
 
 on:
   schedule:
@@ -18,23 +18,45 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Update all submodules
-        run: git submodule update --init --recursive --remote
+      - name: Update all core submodules (full history)
+        run: git submodule update --init --recursive --remote --jobs 4
 
-      - name: Fetch official CVE feeds
+      - name: Fetch all official feeds
         run: |
-          mkdir -p feeds/cve/nvd
-          cd feeds/cve/nvd
-          wget -q https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-recent.json.gz -O recent.json.gz || true
-          gunzip -f *.gz || true
+          mkdir -p feeds/cve/nvd feeds/cisa feeds/mitre
+          cd feeds/cve/nvd && wget -q https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-recent.json.gz -O recent.json.gz && gunzip -f *.gz || true
+          cd ../../cisa && wget -q https://www.cisa.gov/known-exploited-vulnerabilities.json -O kev.json || true
+          cd ../../mitre && wget -q https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json -O enterprise-attack.json || true
 
-      - name: Generate full change catalog + archives (append-only)
+      - name: MAX Discovery - Clone new PoCs from everywhere on GitHub
+        run: |
+          mkdir -p discovered-pocs
+          echo "🔍 Running aggressive GitHub-wide PoC discovery..."
+          
+          # Multiple broad searches to catch as much as possible
+          for query in \
+            "CVE PoC OR exploit PoC" \
+            "0day PoC OR 0-day PoC" \
+            "RCE PoC OR remote code execution PoC" \
+            "LPE PoC OR privilege escalation PoC" \
+            "payload PoC OR bypass PoC"; do
+            echo "Searching: $query"
+            gh search repos "$query" --limit 80 --json url,updatedAt --jq '.[] | select(.updatedAt > "2025-01-01") | .url' | while read repo; do
+              name=$(basename "$repo" .git)
+              if [ ! -d "discovered-pocs/$name" ]; then
+                echo "→ Cloning new: $repo"
+                git clone --depth 1 "$repo" "discovered-pocs/$name" || true
+              fi
+            done
+          done
+
+      - name: Generate full append-only history + archives
         run: |
           chmod +x scripts/generate-history.sh
           scripts/generate-history.sh
 
-      - name: Commit & push (append-only)
+      - name: Commit & push (append-only - never deletes anything)
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: daily update + full change catalog ${{ github.event.repository.updated_at }}"
+          commit_message: "chore: MAX daily update + aggressive PoC discovery + feeds ${{ github.event.repository.updated_at }}"
           file_pattern: .

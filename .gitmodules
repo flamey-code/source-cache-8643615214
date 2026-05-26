@@ -19,3 +19,12 @@
 [submodule "exploits/impacket"]
 	path = exploits/impacket
 	url = https://github.com/fortra/impacket.git
+[submodule "exploits/covenant"]
+	path = exploits/covenant
+	url = https://github.com/cobbr/Covenant.git
+[submodule "exploits/empire"]
+	path = exploits/empire
+	url = https://github.com/BC-Security/Empire.git
+[submodule "exploits/sliver"]
+	path = exploits/sliver
+	url = https://github.com/BishopFox/sliver.git
